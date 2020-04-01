@@ -1,8 +1,8 @@
 #include <stdio.h>
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
-
 #include <string>
+#include <time.h>
 
 #include <GL/gl3w.h>
 #include "wglext.h"
@@ -11,6 +11,8 @@
 #include "imgui_internal.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_opengl3.h"
+
+#include "discord-rpc/win32-dynamic/include/discord_rpc.h"
 
 #include "ProggyClean.h"
 
@@ -137,6 +139,32 @@ Win32InitOpenGL(HDC dc, unsigned int frameVSyncSkipCount)
     return true;
 }
 
+std::string status;
+time_t curtime = time(0);
+
+void initDiscord() {
+	DiscordEventHandlers handlers;
+	memset(&handlers, 0, sizeof(handlers));
+	handlers = {};
+	Discord_Initialize("692808414409261136", &handlers, 1, NULL);
+}
+
+void UpdatePresence(std::string state) {
+	char *statechr = &state[0];
+	
+	DiscordRichPresence discordPresence;
+	memset(&discordPresence, 0, sizeof(discordPresence));
+
+	discordPresence.state = statechr;
+
+	discordPresence.largeImageKey = "icon";
+	discordPresence.largeImageText = "Minecraft";
+	
+	discordPresence.startTimestamp = curtime;
+
+	Discord_UpdatePresence(&discordPresence);
+}
+
 // got this from here https://noobtuts.com/cpp/compare-float-values
 bool cmpf(float A, float B, float epsilon = 0.005f) {
 	return (fabs(A - B) < epsilon);
@@ -144,6 +172,9 @@ bool cmpf(float A, float B, float epsilon = 0.005f) {
 
 int main(int, char**)
 {
+	initDiscord();
+	UpdatePresence("");
+	
     WNDCLASS windowClass = {};
     windowClass.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC|CS_NOCLOSE;
     windowClass.lpfnWndProc = Win32WindowProc;
@@ -292,6 +323,7 @@ int main(int, char**)
 		ImGui::SameLine();
 		if (ImGui::Button("Set status"))
 			strcpy(statemsg, state);
+			UpdatePresence(statemsg);
 			if (strcmp(state, statemsg) == 0)
 				memset(state, 0, 128);
 		
@@ -337,6 +369,8 @@ int main(int, char**)
 
     DestroyWindow(window);
     UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
-
+	
+	Discord_Shutdown();
+	
     return 0;
 }
